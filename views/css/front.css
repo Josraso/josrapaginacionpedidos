@@ -1,0 +1,50 @@
+/* Paginación de pedidos y direcciones - estilos neutros para cualquier tema */
+.josrapp-toolbar { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .75rem; }
+.josrapp-toolbar .form-control { flex: 1 1 220px; width: auto; max-width: 100%; min-height: 2.5rem; }
+.josrapp-toolbar select.form-control { flex: 0 1 200px; }
+.josrapp-toolbar .btn { white-space: nowrap; }
+.josrapp-reset { white-space: nowrap; }
+.josrapp-count { margin: .25rem 0 1rem; opacity: .75; font-size: .9em; }
+.josrapp-addr-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: .5rem; align-items: flex-start; }
+.josrapp-addr-head .josrapp-toolbar { flex: 1 1 480px; }
+.josrapp-head-actions { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; margin-bottom: .75rem; }
+.josrapp-views { display: inline-flex; border: 1px solid rgba(0,0,0,.15); border-radius: 4px; overflow: hidden; }
+.josrapp-views a { padding: .4rem .8rem; text-decoration: none; }
+.josrapp-views a + a { border-left: 1px solid rgba(0,0,0,.15); }
+.josrapp-views a.active { background: rgba(0,0,0,.07); font-weight: 600; }
+.josrapp-table-wrap { overflow-x: auto; background: #fff; }
+.josrapp-table { width: 100%; border-collapse: collapse; font-size: .92em; }
+.josrapp-table th, .josrapp-table td { padding: .6rem .7rem; border-bottom: 1px solid rgba(0,0,0,.1); text-align: left; vertical-align: top; }
+.josrapp-table th { font-weight: 600; white-space: nowrap; background: rgba(0,0,0,.03); }
+.josrapp-table tbody tr:hover { background: rgba(0,0,0,.025); }
+.josrapp-actions { white-space: nowrap; text-align: right !important; }
+.josrapp-actions a { margin-left: .75rem; }
+.josrapp-muted { opacity: .6; }
+.josrapp-pagination { margin: 1.25rem 0; }
+.josrapp-pagination ul { display: flex; flex-wrap: wrap; gap: .3rem; list-style: none; padding: 0; margin: 0; justify-content: center; }
+.josrapp-pagination li a, .josrapp-pagination li span { display: inline-block; min-width: 2.4rem; padding: .45rem .7rem; text-align: center;
+  border: 1px solid rgba(0,0,0,.15); border-radius: 4px; text-decoration: none; background: #fff; }
+.josrapp-pagination li.current span { font-weight: 700; background: rgba(0,0,0,.08); }
+.josrapp-pagination li.josrapp-dots { padding: .45rem .3rem; }
+@media (max-width: 767px) {
+  .josrapp-table thead { display: none; }
+  .josrapp-table, .josrapp-table tbody, .josrapp-table tr, .josrapp-table td { display: block; width: 100%; }
+  .josrapp-table tr { border-bottom: 2px solid rgba(0,0,0,.12); padding: .4rem 0; }
+  .josrapp-table td { border: 0; padding: .25rem .7rem; }
+  .josrapp-table td[data-label]::before { content: attr(data-label); display: block; font-size: .8em; opacity: .6; }
+  .josrapp-actions { text-align: left !important; }
+  .josrapp-actions a { margin: 0 1rem 0 0; }
+}
+/* Checkout */
+.josrapp-search { position: relative; margin: .5rem 0 1rem; }
+.josrapp-search .form-control { width: 100%; }
+.josrapp-search-info { font-size: .85em; opacity: .75; margin: .35rem 0 0; }
+.josrapp-results { position: absolute; z-index: 50; left: 0; right: 0; top: 100%; background: #fff; border: 1px solid rgba(0,0,0,.15);
+  border-radius: 0 0 4px 4px; max-height: 320px; overflow-y: auto; box-shadow: 0 6px 16px rgba(0,0,0,.12); }
+.josrapp-results button { display: block; width: 100%; text-align: left; padding: .55rem .75rem; border: 0; border-bottom: 1px solid rgba(0,0,0,.07);
+  background: #fff; cursor: pointer; font: inherit; }
+.josrapp-results button:hover, .josrapp-results button:focus { background: rgba(0,0,0,.05); }
+.josrapp-results small { display: block; opacity: .7; }
+.josrapp-results .josrapp-empty { padding: .6rem .75rem; opacity: .7; }
+.josrapp-hidden { display: none !important; }
+.josrapp-change, .josrapp-same { display: inline-block; margin: .25rem 1rem 1rem 0; padding-left: 0; }
