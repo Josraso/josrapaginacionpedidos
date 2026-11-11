@@ -1,5 +1,9 @@
 # Changelog - josrapaginacionpedidos
 
+## 1.1.1 - 2026-11-11
+- Actualizador: si el servidor de actualizaciones cambia de dominio, el módulo aprende la dirección nueva solo.
+- Actualizador preparado para licencias (desactivadas en este módulo).
+
 ## 1.1.0 - 2026-11-11
 - Administración · Pedido manual (Pedidos > Añadir pedido): los carritos y los pedidos del cliente elegido se ven
   por páginas (5 filas por defecto, configurable), los más recientes primero. Antes PrestaShop los pintaba todos y

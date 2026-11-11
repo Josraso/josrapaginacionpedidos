@@ -22,7 +22,7 @@ class Josrapaginacionpedidos extends Module
     {
         $this->name = 'josrapaginacionpedidos';
         $this->tab = 'front_office_features';
-        $this->version = '1.1.0';
+        $this->version = '1.1.1';
         $this->author = 'Josra';
         $this->need_instance = 0;
         $this->bootstrap = true;
@@ -82,6 +82,8 @@ class Josrapaginacionpedidos extends Module
         }
         Configuration::deleteByName('JOSRAPAGINACIONPEDIDOS_UPD_TS');
         Configuration::deleteByName('JOSRAPAGINACIONPEDIDOS_UPD_INFO');
+        Configuration::deleteByName('JOSRAPAGINACIONPEDIDOS_UPD_SU');
+        Configuration::deleteByName('JOSRAPAGINACIONPEDIDOS_UPD_LT');
 
         return parent::uninstall();
     }
