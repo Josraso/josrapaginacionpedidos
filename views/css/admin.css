@@ -1,0 +1,23 @@
+/* josrapaginacionpedidos - back-office */
+.josrapp-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 4px 2px;
+  font-size: 13px;
+}
+.josrapp-pager-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.josrapp-pager-pos {
+  padding: 0 8px;
+  white-space: nowrap;
+}
+.josrapp-pager .btn {
+  min-width: 30px;
+  line-height: 1.2;
+}

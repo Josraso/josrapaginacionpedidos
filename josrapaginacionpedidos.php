@@ -5,6 +5,8 @@
  *  - Historial de pedidos paginado (evita el "Allowed memory size exhausted" de la página de historial).
  *  - Mis direcciones paginadas, con buscador y vista compacta en tabla.
  *  - Checkout: lista corta de direcciones + buscador, y dirección de facturación habitual preseleccionada.
+ *  - Back-office: carritos y pedidos del cliente paginados en el pedido manual, y paginación en las listas
+ *    de la ficha de cliente que no la tienen (mensajes, correos enviados, conexiones...).
  *
  * Sin overrides. PrestaShop 1.7, 8 y 9. Usa las plantillas del propio tema (vale para cualquier tema).
  */
@@ -12,21 +14,23 @@ if (!defined('_PS_VERSION_')) {
     exit;
 }
 
+require_once dirname(__FILE__) . '/classes/JosrapaginacionpedidosUpdater.php';
+
 class Josrapaginacionpedidos extends Module
 {
     public function __construct()
     {
         $this->name = 'josrapaginacionpedidos';
         $this->tab = 'front_office_features';
-        $this->version = '1.0.2';
+        $this->version = '1.1.0';
         $this->author = 'Josra';
         $this->need_instance = 0;
         $this->bootstrap = true;
 
         parent::__construct();
 
-        $this->displayName = $this->l('Paginación de pedidos y direcciones');
-        $this->description = $this->l('Historial de pedidos y direcciones paginados, y checkout ágil para clientes con miles de pedidos o direcciones.');
+        $this->displayName = $this->l('Paginación de pedidos, direcciones y listas del back-office');
+        $this->description = $this->l('Tienda: historial de pedidos y direcciones paginados y checkout ágil. Administración: carritos y pedidos paginados en el pedido manual y en la ficha de cliente.');
         $this->ps_versions_compliancy = ['min' => '1.7.0.0', 'max' => _PS_VERSION_];
     }
 
@@ -43,6 +47,12 @@ class Josrapaginacionpedidos extends Module
             'JOSRAPP_CHECKOUT_RECENT' => 5,
             'JOSRAPP_HABITUAL_INVOICE' => 1,
             'JOSRAPP_FOLD_INVOICE' => 1,
+            // Administración
+            'JOSRAPP_BO_ORDER' => 1,
+            'JOSRAPP_BO_ORDER_PER_PAGE' => 5,
+            'JOSRAPP_BO_ORDER_FOLD' => 0,
+            'JOSRAPP_BO_CUSTOMER' => 1,
+            'JOSRAPP_BO_CUSTOMER_PER_PAGE' => 10,
         ];
     }
 
@@ -58,16 +68,94 @@ class Josrapaginacionpedidos extends Module
             'actionFrontControllerSetMedia',
             'actionFrontControllerSetVariables',
             'moduleRoutes',
-        ]);
+            'displayBackOfficeHeader',
+        ]) && $this->getUpdater()->registerHooks();
     }
 
     public function uninstall()
     {
+        // Aviso al servidor de actualizaciones (no impide desinstalar si no responde)
+        $this->getUpdater()->notifyUninstall();
+
         foreach (array_keys(self::defaults()) as $k) {
             Configuration::deleteByName($k);
         }
+        Configuration::deleteByName('JOSRAPAGINACIONPEDIDOS_UPD_TS');
+        Configuration::deleteByName('JOSRAPAGINACIONPEDIDOS_UPD_INFO');
 
         return parent::uninstall();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Actualizaciones                                                    */
+    /* ------------------------------------------------------------------ */
+
+    public function getUpdater()
+    {
+        return new JosrapaginacionpedidosUpdater($this);
+    }
+
+    /** Aviso periódico al servidor de actualizaciones (solo en el back-office) */
+    public function hookActionAdminControllerSetMedia($params)
+    {
+        $this->getUpdater()->maybePing();
+    }
+
+    /** PS 8.1+: la versión nueva aparece en Gestor de módulos > Actualizaciones */
+    public function hookActionListModules($params)
+    {
+        return $this->getUpdater()->getNativeModuleList();
+    }
+
+    /* ------------------------------------------------------------------ */
+    /*  Administración                                                     */
+    /* ------------------------------------------------------------------ */
+
+    /**
+     * Pedido manual y ficha de cliente: carga el script que pagina las listas largas.
+     * Solo en las pantallas de pedidos y clientes; el script actúa si encuentra esas listas.
+     */
+    public function hookDisplayBackOfficeHeader($params)
+    {
+        $order = (bool) Configuration::get('JOSRAPP_BO_ORDER');
+        $customer = (bool) Configuration::get('JOSRAPP_BO_CUSTOMER');
+        if (!$order && !$customer) {
+            return '';
+        }
+        $controller = '';
+        if (isset($this->context->controller) && !empty($this->context->controller->controller_name)) {
+            $controller = (string) $this->context->controller->controller_name;
+        }
+        if ($controller === '') {
+            $controller = (string) Tools::getValue('controller');
+        }
+        $uri = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
+        if (!in_array($controller, ['AdminOrders', 'AdminCustomers'], true)
+            && !preg_match('#/sell/(orders|customers)/#', $uri)) {
+            return '';
+        }
+
+        $config = [
+            'order' => $order,
+            'orderPerPage' => max(3, (int) Configuration::get('JOSRAPP_BO_ORDER_PER_PAGE')),
+            'orderFold' => (bool) Configuration::get('JOSRAPP_BO_ORDER_FOLD'),
+            'customer' => $customer,
+            'customerPerPage' => max(5, (int) Configuration::get('JOSRAPP_BO_CUSTOMER_PER_PAGE')),
+            't' => [
+                'showing' => $this->l('Mostrando %1 a %2 de %3'),
+                'page' => $this->l('Página %1 de %2'),
+                'first' => $this->l('Primera'),
+                'prev' => $this->l('Anterior'),
+                'next' => $this->l('Siguiente'),
+                'last' => $this->l('Última'),
+            ],
+        ];
+        $base = $this->_path . 'views/';
+        $v = rawurlencode($this->version);
+
+        return '<script>var josrappAdmin = ' . json_encode($config, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';</script>'
+            . '<link rel="stylesheet" href="' . $base . 'css/admin.css?v=' . $v . '" type="text/css" media="all">'
+            . '<script src="' . $base . 'js/admin.js?v=' . $v . '" defer></script>';
     }
 
     /* ------------------------------------------------------------------ */
@@ -365,9 +453,14 @@ class Josrapaginacionpedidos extends Module
 
     public function getContent()
     {
-        $html = '';
+        $updater = $this->getUpdater();
+        $html = $updater->processRequest();
+        if (!$this->isRegisteredInHook('displayBackOfficeHeader')) {
+            $this->registerHook('displayBackOfficeHeader');
+        }
         if (Tools::isSubmit('submitJosrapp')) {
-            foreach (['JOSRAPP_HISTORY', 'JOSRAPP_ADDRESSES', 'JOSRAPP_CHECKOUT', 'JOSRAPP_HABITUAL_INVOICE', 'JOSRAPP_FOLD_INVOICE'] as $k) {
+            foreach (['JOSRAPP_HISTORY', 'JOSRAPP_ADDRESSES', 'JOSRAPP_CHECKOUT', 'JOSRAPP_HABITUAL_INVOICE', 'JOSRAPP_FOLD_INVOICE',
+                'JOSRAPP_BO_ORDER', 'JOSRAPP_BO_ORDER_FOLD', 'JOSRAPP_BO_CUSTOMER'] as $k) {
                 Configuration::updateValue($k, (int) Tools::getValue($k));
             }
             Configuration::updateValue('JOSRAPP_HISTORY_PER_PAGE', max(5, min(200, (int) Tools::getValue('JOSRAPP_HISTORY_PER_PAGE'))));
@@ -375,10 +468,18 @@ class Josrapaginacionpedidos extends Module
             Configuration::updateValue('JOSRAPP_ADDRESSES_VIEW', Tools::getValue('JOSRAPP_ADDRESSES_VIEW') === 'cards' ? 'cards' : 'table');
             Configuration::updateValue('JOSRAPP_CHECKOUT_MIN', max(2, (int) Tools::getValue('JOSRAPP_CHECKOUT_MIN')));
             Configuration::updateValue('JOSRAPP_CHECKOUT_RECENT', max(1, min(50, (int) Tools::getValue('JOSRAPP_CHECKOUT_RECENT'))));
+            Configuration::updateValue('JOSRAPP_BO_ORDER_PER_PAGE', max(3, min(100, (int) Tools::getValue('JOSRAPP_BO_ORDER_PER_PAGE'))));
+            Configuration::updateValue('JOSRAPP_BO_CUSTOMER_PER_PAGE', max(5, min(100, (int) Tools::getValue('JOSRAPP_BO_CUSTOMER_PER_PAGE'))));
             $html .= $this->displayConfirmation($this->l('Configuración guardada.'));
         }
 
-        return $html . $this->renderForm();
+        $info = $updater->getInfo();
+        $panel = $updater->renderPanel();
+        $forms = $this->renderForm();
+
+        return !empty($info['update_available'])
+            ? $html . $panel . $forms
+            : $html . $forms . $panel;
     }
 
     protected function switchField($name, $label, $desc)
@@ -402,9 +503,13 @@ class Josrapaginacionpedidos extends Module
         foreach ([10, 20, 30, 50, 100] as $n) {
             $perPage[] = ['id' => $n, 'name' => $n];
         }
+        $perPageBo = [];
+        foreach ([5, 10, 15, 20, 30, 50] as $n) {
+            $perPageBo[] = ['id' => $n, 'name' => $n];
+        }
         $forms = [
             ['form' => [
-                'legend' => ['title' => $this->l('Historial de pedidos'), 'icon' => 'icon-list'],
+                'legend' => ['title' => $this->l('Tienda · Historial de pedidos'), 'icon' => 'icon-list'],
                 'input' => [
                     $this->switchField('JOSRAPP_HISTORY', $this->l('Historial paginado'),
                         $this->l('Sustituye la página «Historial y detalles de mis pedidos» por una paginada con buscador. Evita el error de memoria con clientes de miles de pedidos. Usa la plantilla de historial de tu tema.')),
@@ -418,7 +523,7 @@ class Josrapaginacionpedidos extends Module
                 'submit' => ['title' => $this->l('Guardar'), 'name' => 'submitJosrapp'],
             ]],
             ['form' => [
-                'legend' => ['title' => $this->l('Mis direcciones'), 'icon' => 'icon-map-marker'],
+                'legend' => ['title' => $this->l('Tienda · Mis direcciones'), 'icon' => 'icon-map-marker'],
                 'input' => [
                     $this->switchField('JOSRAPP_ADDRESSES', $this->l('Direcciones paginadas'),
                         $this->l('Sustituye la página «Mis direcciones» por una paginada, con buscador y ordenada por la última usada.')),
@@ -442,7 +547,7 @@ class Josrapaginacionpedidos extends Module
                 'submit' => ['title' => $this->l('Guardar'), 'name' => 'submitJosrapp'],
             ]],
             ['form' => [
-                'legend' => ['title' => $this->l('Checkout'), 'icon' => 'icon-shopping-cart'],
+                'legend' => ['title' => $this->l('Tienda · Checkout'), 'icon' => 'icon-shopping-cart'],
                 'input' => [
                     $this->switchField('JOSRAPP_CHECKOUT', $this->l('Lista corta y buscador'),
                         $this->l('En el paso de direcciones muestra solo las seleccionadas y las últimas usadas, con un buscador para elegir cualquier otra.')),
@@ -464,6 +569,37 @@ class Josrapaginacionpedidos extends Module
                         $this->l('Al empezar cada compra se selecciona como dirección de facturación la que el cliente más ha usado para facturar. Así solo tiene que buscar la de envío.')),
                     $this->switchField('JOSRAPP_FOLD_INVOICE', $this->l('Plegar la facturación'),
                         $this->l('Muestra solo la dirección de facturación elegida, con un botón «Cambiar» para ver las demás.')),
+                ],
+                'submit' => ['title' => $this->l('Guardar'), 'name' => 'submitJosrapp'],
+            ]],
+            ['form' => [
+                'legend' => ['title' => $this->l('Administración · Pedido manual'), 'icon' => 'icon-user'],
+                'input' => [
+                    $this->switchField('JOSRAPP_BO_ORDER', $this->l('Carritos y pedidos paginados'),
+                        $this->l('En Pedidos > Añadir pedido, al elegir el cliente PrestaShop lista todos sus carritos y todos sus pedidos. Con esto se ven por páginas, los más recientes primero, y el buscador de productos queda a la vista.')),
+                    [
+                        'type' => 'select',
+                        'label' => $this->l('Filas por página'),
+                        'name' => 'JOSRAPP_BO_ORDER_PER_PAGE',
+                        'desc' => $this->l('Vale para las dos pestañas: Carritos y Pedidos.'),
+                        'options' => ['query' => $perPageBo, 'id' => 'id', 'name' => 'name'],
+                    ],
+                    $this->switchField('JOSRAPP_BO_ORDER_FOLD', $this->l('Plegar el bloque al elegir cliente'),
+                        $this->l('El bloque de carritos y pedidos aparece cerrado; se abre con su botón de la derecha.')),
+                ],
+                'submit' => ['title' => $this->l('Guardar'), 'name' => 'submitJosrapp'],
+            ]],
+            ['form' => [
+                'legend' => ['title' => $this->l('Administración · Ficha de cliente'), 'icon' => 'icon-user'],
+                'input' => [
+                    $this->switchField('JOSRAPP_BO_CUSTOMER', $this->l('Paginar las listas sin paginación'),
+                        $this->l('En la ficha de cliente, pagina las listas que PrestaShop pinta enteras: mensajes, correos enviados, últimas conexiones y, en versiones anteriores a la 9, también pedidos, carritos, productos y direcciones. Las que ya traen paginación propia no se tocan.')),
+                    [
+                        'type' => 'select',
+                        'label' => $this->l('Filas por página'),
+                        'name' => 'JOSRAPP_BO_CUSTOMER_PER_PAGE',
+                        'options' => ['query' => $perPageBo, 'id' => 'id', 'name' => 'name'],
+                    ],
                 ],
                 'submit' => ['title' => $this->l('Guardar'), 'name' => 'submitJosrapp'],
             ]],
