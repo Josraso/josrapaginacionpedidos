@@ -2,7 +2,7 @@
 <module>
     <name>josrapaginacionpedidos</name>
     <displayName><![CDATA[Paginación de pedidos, direcciones y listas del back-office]]></displayName>
-    <version><![CDATA[1.1.1]]></version>
+    <version><![CDATA[1.1.2]]></version>
     <description><![CDATA[Tienda: historial de pedidos y direcciones paginados y checkout ágil. Administración: carritos y pedidos paginados en el pedido manual y en la ficha de cliente.]]></description>
     <author><![CDATA[Josra]]></author>
     <tab><![CDATA[front_office_features]]></tab>
